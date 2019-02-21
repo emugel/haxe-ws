@@ -16,7 +16,7 @@ class WebSocketGeneric extends WebSocket {
     public var path(default, null) = "/";
     private var secure = false;
     private var protocols = [];
-    private var state:State = State.Handshake;
+    private var state = State.Closed;
     public var debug:Bool = true;
     private var needHandleData:Bool = false;
 
@@ -42,8 +42,9 @@ class WebSocketGeneric extends WebSocket {
         //trace('$scheme, $host, $port, $path');
 
         socket = Socket2.create(host, port, secure, debug);
-        state = State.Handshake;
+        state = State.ConnectingToSocket;
         socket.onconnect = function() {
+            state = State.Handshake;
             _debug('socket connected');
             writeBytes(prepareClientHandshake(path, host, port, key, origin));
             //this.onopen();
@@ -352,11 +353,11 @@ class WebSocketGeneric extends WebSocket {
     }
 
     override public function close() {
-		if(state != State.Closed) {
-			sendFrame(Bytes.alloc(0), Opcode.Close);
-			socket.close();
-			setClosed();
-		}
+        if(state != State.Closed && state != State.ConnectingToSocket) {
+            sendFrame(Bytes.alloc(0), Opcode.Close);
+        }
+        socket.close();
+        setClosed();
     }
 
     private function sendFrame(data:Bytes, type:Opcode) {
@@ -365,6 +366,7 @@ class WebSocketGeneric extends WebSocket {
     
     override function get_readyState():ReadyState {
         return switch(state) {
+            case ConnectingToSocket: ReadyState.Connecting;
             case Handshake: ReadyState.Connecting;
             case ServerHandshake: ReadyState.Connecting;
             case Head: ReadyState.Open;
@@ -429,6 +431,7 @@ class WebSocketGeneric extends WebSocket {
 }
 
 enum State {
+    ConnectingToSocket;
     Handshake;
     ServerHandshake;
     Head;
