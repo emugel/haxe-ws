@@ -14,12 +14,13 @@ enum Security {
 
 class WebSocketServer { 
 
-	var _isDebug:Bool;
-	var _isSecure:Bool;
-	var _listenSocket:sys.net.Socket;
+	var _isDebug      : Bool;
+	var _isSecure     : Bool;
+	var _listenSocket : sys.net.Socket;
 	#if neko
-	var keepalive:Dynamic;
+	var keepalive     : Dynamic;
 	#end
+
 	function new(host:String, port:Int, maxConnections:Int, security:Security, isDebug:Bool=false) {
 		_isDebug = isDebug;
 		_listenSocket = _isSecure ? new sys.ssl.Socket() : new sys.net.Socket() ;

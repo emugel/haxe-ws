@@ -12,6 +12,14 @@ class WebSocketExample {
             while(s.length < 100000) s = '$s, $s';
             ws.sendString(s);
             ws.sendString('message length was ${s.length}');
+
+            ws.sendString(s);
+            ws.sendString(s);
+            ws.sendString(s);
+            ws.sendString(s);
+            ws.sendString(s);
+            ws.sendString(s);
+            ws.sendString(s);
             
         };
         ws.onmessageString = function(message) {

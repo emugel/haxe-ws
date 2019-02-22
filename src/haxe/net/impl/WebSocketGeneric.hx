@@ -168,8 +168,12 @@ class WebSocketGeneric extends WebSocket {
                     
                     var b0 = socketData.readByte();
                     var b1 = socketData.readByte();
+                    _debug('b0 = socketData.readByte(): $b0');
+                    _debug('b1 = socketData.readByte(): $b1');
 
                     isFinal = ((b0 >> 7) & 1) != 0;
+                    _debug("isFinal = ((b0 >> 7) & 1) != 0");
+                    _debug(' b0:$b0 b0>>7:${b0 >> 7} (b0>>7) & 1: ${(b0>>7) & 1}');
                     opcode = cast(((b0 >> 0) & 0xF), Opcode);
                     frameIsBinary = if (opcode == Opcode.Text) false; else if (opcode == Opcode.Binary) true; else frameIsBinary;
                     partialLength = ((b1 >> 0) & 0x7F);
@@ -196,13 +200,18 @@ class WebSocketGeneric extends WebSocket {
                     }
                     state = State.Body;
                 case State.Body:
+                    _debug("WebSocketGeneric.handleData case State.Body. length:" + length + ". socketData.available:" + socketData.available);
                     if (socketData.available < length) return;
+                    _debug("WebSocketGeneric.handleData, avail >= length, going on");
                     payload.writeBytes(socketData.readBytes(length));
+
                     if(state != State.Closed) state = State.Head;
                     switch (opcode) {
                         case Opcode.Binary | Opcode.Text | Opcode.Continuation:
+
                             _debug("Received message, " + "Type: " + opcode);
                             if (isFinal) {
+
                                 var messageData = payload.readAllAvailableBytes();
                                 var unmakedMessageData = (isMasked) ? applyMask(messageData, mask) : messageData;
                                 if (frameIsBinary) {
@@ -231,9 +240,6 @@ class WebSocketGeneric extends WebSocket {
                     return;
             }
         }
-
-        //trace('data!' + socket.bytesAvailable);
-        //trace(socket.readUTFBytes(socket.bytesAvailable));
     }
 
     private function validateServerHandshakeHeader():Void {
@@ -258,6 +264,7 @@ class WebSocketGeneric extends WebSocket {
     }
 
     private function ping() {
+        _debug("Who said to send ping?");
         sendFrame(Bytes.alloc(0), Opcode.Ping);
     }
     
@@ -293,18 +300,20 @@ class WebSocketGeneric extends WebSocket {
                 if (!regexp.match(header)) throw 'HTTP request line is invalid: "$header"';
                 var name = regexp.matched(1);
                 var value = regexp.matched(2);
-                switch(name) {
-                    case 'Sec-WebSocket-Key': key = value;
-                    case 'Sec-WebSocket-Version': version = value;
-                    case 'Upgrade': upgrade = value;
-                    case 'Connection': connection = value;
+                
+                // lower case inside the cases please!
+                switch(name.toLowerCase()) {
+                    case 'sec-websocket-key'     : key = value;
+                    case 'sec-websocket-version' : version = value;
+                    case 'upgrade'               : upgrade = value;
+                    case 'connection'            : connection = value;
                 }
             }
             
             if (
                 version != '13' 
-                || upgrade != 'websocket' 
-                || connection.indexOf('Upgrade') < 0
+                || upgrade.toLowerCase() != 'websocket' 
+                || connection.indexOf('pgrade') < 0
                 || key == null
             ) {
                 throw [
@@ -321,9 +330,9 @@ class WebSocketGeneric extends WebSocket {
         
         return [
             'HTTP/1.1 101 Switching Protocols',
-            'Upgrade: websocket',
-            'Connection: Upgrade',
+            'Connection: upgrade',
             'Sec-WebSocket-Accept: $acceptKey',
+            'Upgrade: WebSocket',
             '',    ''
         ].join('\r\n');
         
@@ -344,12 +353,12 @@ class WebSocketGeneric extends WebSocket {
         lines.push('Host: ${host}:${port}');
         lines.push('Pragma: no-cache');
         lines.push('Cache-Control: no-cache');
-        lines.push('Upgrade: websocket');
+        lines.push('Connection: upgrade');
         if (this.protocols != null) {
             lines.push('Sec-WebSocket-Protocol: ' + this.protocols.join(', '));
         }
+        lines.push('Upgrade: WebSocket');
         lines.push('Sec-WebSocket-Version: 13');
-        lines.push('Connection: Upgrade');
         lines.push("Sec-WebSocket-Key: " + Base64.encode(Utf8Encoder.encode(key)));
         lines.push('Origin: ${origin}');
         lines.push('User-Agent: Mozilla/5.0');
@@ -371,14 +380,14 @@ class WebSocketGeneric extends WebSocket {
     
     override function get_readyState():ReadyState {
         return switch(state) {
-            case ConnectingToSocket: ReadyState.Connecting;
-            case Handshake: ReadyState.Connecting;
-            case ServerHandshake: ReadyState.Connecting;
-            case Head: ReadyState.Open;
-            case HeadExtraLength: ReadyState.Open;
-            case HeadExtraMask: ReadyState.Open;
-            case Body: ReadyState.Open;
-            case Closed: ReadyState.Closed;
+            case ConnectingToSocket : ReadyState.Connecting;
+            case Handshake          : ReadyState.Connecting;
+            case ServerHandshake    : ReadyState.Connecting;
+            case Head               : ReadyState.Open;
+            case HeadExtraLength    : ReadyState.Open;
+            case HeadExtraMask      : ReadyState.Open;
+            case Body               : ReadyState.Open;
+            case Closed             : ReadyState.Closed;
         }
     }
 
@@ -447,28 +456,28 @@ enum State {
 }
 
 @:enum abstract WebSocketCloseCode(Int) {
-    var Normal = 1000;
-    var Shutdown = 1001;
-    var ProtocolError = 1002;
-    var DataError = 1003;
-    var Reserved1 = 1004;
-    var NoStatus = 1005;
-    var CloseError = 1006;
-    var UTF8Error = 1007;
-    var PolicyError = 1008;
-    var TooLargeMessage = 1009;
+    var Normal               = 1000;
+    var Shutdown             = 1001;
+    var ProtocolError        = 1002;
+    var DataError            = 1003;
+    var Reserved1            = 1004;
+    var NoStatus             = 1005;
+    var CloseError           = 1006;
+    var UTF8Error            = 1007;
+    var PolicyError          = 1008;
+    var TooLargeMessage      = 1009;
     var ClientExtensionError = 1010;
-    var ServerRequestError = 1011;
-    var TLSError = 1015;
+    var ServerRequestError   = 1011;
+    var TLSError             = 1015;
 }
 
 @:enum abstract Opcode(Int) {
     var Continuation = 0x00;
-    var Text = 0x01;
-    var Binary = 0x02;
-    var Close = 0x08;
-    var Ping = 0x09;
-    var Pong = 0x0A;
+    var Text         = 0x01;
+    var Binary       = 0x02;
+    var Close        = 0x08;
+    var Ping         = 0x09;
+    var Pong         = 0x0A;
 
     @:to public function toInt() {
         return this;

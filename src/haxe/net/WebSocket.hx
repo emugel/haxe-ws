@@ -14,15 +14,19 @@ class WebSocket {
     private function new() {
     }
 
-    dynamic static public function create(url:String, protocols:Array<String> = null, origin:String = null, debug:Bool = false):WebSocket {
+    dynamic static public function create(
+            url       : String,
+            protocols : Array<String> = null,
+            origin    : String        = null,
+            debug     : Bool          = false
+    ) : WebSocket {
         #if js
-        return new haxe.net.impl.WebSocketJs(url, protocols);
+            return new haxe.net.impl.WebSocketJs(url, protocols);
+        #elseif flash
+            if (haxe.net.impl.WebSocketFlashExternalInterface.available()) {
+                return new haxe.net.impl.WebSocketFlashExternalInterface(url, protocols);
+            }
         #else
-            #if flash
-                if (haxe.net.impl.WebSocketFlashExternalInterface.available()) {
-                    return new haxe.net.impl.WebSocketFlashExternalInterface(url, protocols);
-                }
-            #end
             return haxe.net.impl.WebSocketGeneric.create(url, protocols, origin, "wskey", debug);
         #end
     }
@@ -35,8 +39,12 @@ class WebSocket {
 	 * @param	alredyRecieved - data already read from socket, it should be no more then full http header
 	 * @param	debug - debug messages?
 	 */
-	static public function createFromAcceptedSocket(socket:Socket2, alreadyRecieved:String = '', debug:Bool = false):WebSocket {
-		return haxe.net.impl.WebSocketGeneric.createFromAcceptedSocket(socket, alreadyRecieved, debug);
+    static public function createFromAcceptedSocket(
+            socket          : Socket2,
+            alreadyReceived : String = '',
+            debug           : Bool   = false
+    ) : WebSocket {
+		return haxe.net.impl.WebSocketGeneric.createFromAcceptedSocket(socket, alreadyReceived, debug);
 	}
 	#end
 

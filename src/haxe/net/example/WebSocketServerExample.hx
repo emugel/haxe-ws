@@ -53,7 +53,7 @@ class WebSocketServerExample {
 	
 	static function main() {
 		var port = 8000;
-		var server = WebSocketServer.create('0.0.0.0', port, 1, true);
+		var server = WebSocketServer.create('0.0.0.0', port, 1, Unsecured, true);
 		var handlers = [];
 		trace('listening on port $port');
 		while (true) {

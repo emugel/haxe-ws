@@ -30,9 +30,22 @@ class SocketSys extends Socket2 {
         }
         try {
             this.impl.connect(new Host(host), port);
-            //this.impl.setFastSend(true);
+
+            // From sys.net.Socket doc:
+            // Allows the socket to immediately send the data when written to
+            // its output : this will cause less ping but might increase the
+            // number of packets / data size, especially when doing a lot of
+            // small writes.
+            // this.impl.setFastSend(true);
+
+            // From sys.net.Socket doc:
+            // Change the blocking mode of the socket. A blocking socket is the
+            // default behavior. A non-blocking socket will abort blocking
+            // operations immediately by throwing a haxe.io.Error.Blocking
+            // value.
             this.impl.setBlocking(false);
             //this.impl.setBlocking(true);
+
             this.sendConnect = true;
             if (debug) trace('socket.connected!');
         } catch (e:Dynamic) {
