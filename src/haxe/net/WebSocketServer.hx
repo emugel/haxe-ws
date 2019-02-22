@@ -7,6 +7,11 @@ import sys.ssl.Socket;
 import sys.ssl.Certificate;
 import sys.ssl.Key;
 
+enum Security {
+    Unsecured;
+    UseCertificateFromFiles( caFile:String, certFile:String, keyFile:String, bVerifyCert: Bool );
+}
+
 class WebSocketServer { 
 
 	var _isDebug:Bool;
@@ -15,16 +20,23 @@ class WebSocketServer {
 	#if neko
 	var keepalive:Dynamic;
 	#end
-	function new(host:String, port:Int, maxConnections:Int, isSecure:Dynamic = null, isDebug:Bool = false) {
+	function new(host:String, port:Int, maxConnections:Int, security:Security, isDebug:Bool=false) {
 		_isDebug = isDebug;
-		_isSecure = isSecure != null;
 		_listenSocket = _isSecure ? new sys.ssl.Socket() : new sys.net.Socket() ;
 		
-		if(_isSecure){
-			cast(_listenSocket, sys.ssl.Socket).setCA( Certificate.loadFile(Reflect.field(isSecure, "CA")) );
-        	cast(_listenSocket, sys.ssl.Socket).setCertificate( Certificate.loadFile(Reflect.field(isSecure, "Certificate")), Key.readPEM(sys.io.File.getContent(Reflect.field(isSecure, "Key")), false) );
-			cast(_listenSocket, sys.ssl.Socket).verifyCert = false;
-		}
+        switch security {
+            case Unsecured: _isSecure = false;
+            case UseCertificateFromFiles(caFile, certFile, keyFile, bVerifyCert):
+                _isSecure = true;
+
+                var sslSocket : sys.ssl.Socket = cast _listenSocket;
+                sslSocket.setCA(Certificate.loadFile(caFile));
+                sslSocket.setCertificate(
+                    Certificate.loadFile(certFile), 
+                    Key.readPEM(sys.io.File.getContent(keyFile), false)
+                );
+                sslSocket.verifyCert = bVerifyCert;
+        }
 		_listenSocket.bind(new Host(host), port);
 		_listenSocket.setBlocking(false);
 		_listenSocket.listen(maxConnections);
@@ -36,8 +48,8 @@ class WebSocketServer {
 		#end
 	}
 	
-	public static function create(host:String, port:Int, maxConnections:Int, isSecure:Bool, isDebug:Bool) {
-		return new WebSocketServer(host, port, maxConnections, isSecure, isDebug);
+	public static function create(host:String, port:Int, maxConnections:Int, optionalCert:Security, isDebug:Bool) {
+		return new WebSocketServer(host, port, maxConnections, optionalCert, isDebug);
 	}
 	
 	public function accept():WebSocket {

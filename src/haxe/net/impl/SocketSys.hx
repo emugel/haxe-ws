@@ -37,7 +37,7 @@ class SocketSys extends Socket2 {
             if (debug) trace('socket.connected!');
         } catch (e:Dynamic) {
             this.sendError = true;
-            if (debug) trace('socket.error! $e');
+            if (debug) trace('Exception caught in Socket.Sys: socket.error! $e');
         }
 		
 		return this;

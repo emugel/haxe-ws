@@ -3,6 +3,7 @@ package haxe.net.impl;
 import haxe.crypto.Base64;
 import haxe.crypto.Sha1;
 import haxe.io.Bytes;
+import haxe.io.Error;
 import haxe.net.Socket2;
 import haxe.net.WebSocket.ReadyState;
 
@@ -102,8 +103,12 @@ class WebSocketGeneric extends WebSocket {
         try {
             socket.send(data);
         } catch (e:Dynamic) {
-            trace(e);
-            onerror(Std.string(e));
+            if (e == 'Blocking' || (Std.is(e, Error) && (e == Blocked))) {
+                trace("Blocked");
+            }
+            else {
+                onerror(Std.string(e));
+            }
         }
     }
 
