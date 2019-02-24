@@ -20,6 +20,14 @@ class WebSocketGeneric extends WebSocket {
     private var state = State.Closed;
     public var debug:Bool = true;
     private var needHandleData:Bool = false;
+    public var isUsingMasking:Bool = false;
+
+    /**
+     * Set to true if you implement a client.
+     */
+    public inline function setMasking(b:Bool) {
+        isUsingMasking = b;
+    }
 
     function initialize(uri:String, protocols:Array<String> = null, origin:String = null, key:String = "wskey", debug:Bool = true) {
         if (origin == null) origin = "http://127.0.0.1/";
@@ -168,27 +176,43 @@ class WebSocketGeneric extends WebSocket {
                     
                     var b0 = socketData.readByte();
                     var b1 = socketData.readByte();
-                    _debug('b0 = socketData.readByte(): $b0');
-                    _debug('b1 = socketData.readByte(): $b1');
 
                     isFinal = ((b0 >> 7) & 1) != 0;
-                    _debug("isFinal = ((b0 >> 7) & 1) != 0");
-                    _debug(' b0:$b0 b0>>7:${b0 >> 7} (b0>>7) & 1: ${(b0>>7) & 1}');
                     opcode = cast(((b0 >> 0) & 0xF), Opcode);
                     frameIsBinary = if (opcode == Opcode.Text) false; else if (opcode == Opcode.Binary) true; else frameIsBinary;
                     partialLength = ((b1 >> 0) & 0x7F);
                     isMasked = ((b1 >> 7) & 1) != 0;
-
+                    _debug( 'isMasked=$isMasked partialLength=$partialLength');
                     state = State.HeadExtraLength;
                 case State.HeadExtraLength:
+                    /*
+   From RFC:
+   Payload length:  7 bits, 7+16 bits, or 7+64 bits
+
+      The length of the "Payload data", in bytes: if 0-125, that is the
+      payload length.  If 126, the following 2 bytes interpreted as a
+      16-bit unsigned integer are the payload length.  If 127, the
+      following 8 bytes interpreted as a 64-bit unsigned integer (the
+      most significant bit MUST be 0) are the payload length.  Multibyte
+      length quantities are expressed in network byte order.  Note that
+      in all cases, the minimal number of bytes MUST be used to encode
+      the length, for example, the length of a 124-byte-long string
+      can't be encoded as the sequence 126, 0, 124.  The payload length
+      is the length of the "Extension data" + the length of the
+      "Application data".  The length of the "Extension data" may be
+      zero, in which case the payload length is the length of the
+      "Application data".
+
+      note: Network byte order is big-endian. MSB is leftmost.
+      */
                     if (partialLength == 126) {
                         if (socketData.available < 2) return;
                         length = socketData.readUnsignedShort();
                     } else if (partialLength == 127) {
                         if (socketData.available < 8) return;
                         var tmp = socketData.readUnsignedInt();
-                        if(tmp != 0) throw 'message too long';
                         length = socketData.readUnsignedInt();
+                        if(tmp != 0) throw 'message too long: $tmp and $length';
                     } else {
                         length = partialLength;
                     }
@@ -200,7 +224,7 @@ class WebSocketGeneric extends WebSocket {
                     }
                     state = State.Body;
                 case State.Body:
-                    _debug("WebSocketGeneric.handleData case State.Body. length:" + length + ". socketData.available:" + socketData.available);
+                    _debug("WebSocketGeneric.handleData case State.Body." + ' Received ${socketData.available}/$length');
                     if (socketData.available < length) return;
                     _debug("WebSocketGeneric.handleData, avail >= length, going on");
                     payload.writeBytes(socketData.readBytes(length));
@@ -222,9 +246,11 @@ class WebSocketGeneric extends WebSocket {
                                 payload = null;
                             }
                         case Opcode.Ping:
-                            _debug("Received Ping");
+                            var allBytes = payload.readAllAvailableBytes();
+                            _debug("Received Ping, respond with " + allBytes.length + "bytes:");
                             //onPing.dispatch(null);
-                            sendFrame(payload.readAllAvailableBytes(), Opcode.Pong);
+
+                            sendFrame(allBytes, Opcode.Pong);
                         case Opcode.Pong:
                             _debug("Received Pong");
                             //onPong.dispatch(null);
@@ -420,7 +446,9 @@ class WebSocketGeneric extends WebSocket {
         var out = new BytesRW();
 	
         //Chrome: VM321:1 WebSocket connection to 'ws://localhost:8000/' failed: A server must not mask any frames that it sends to the client.
-        var isMasked = false; //true; // All clientes messages must be masked: http://tools.ietf.org/html/rfc6455#section-5.1
+        // var isMasked = false; //true; // All clientes messages must be masked: http://tools.ietf.org/html/rfc6455#section-5.1
+        isMasked = isUsingMasking;
+        _debug('isUsingMasking: $isMasked');
         var mask = generateMask();
         var sizeMask = (isMasked ? 0x80 : 0x00);
 

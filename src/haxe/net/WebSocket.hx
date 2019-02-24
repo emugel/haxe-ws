@@ -10,10 +10,52 @@ enum ReadyState {
 	Closed;
 }
 
+/**
+ * High-level WebSocket.
+ * Underlying implementation is WebSocketGeneric for non-js and non-flash
+ * platform.
+ *
+ * According to RFC6455, frames should be masked if and only if they are
+ * issued from a client to a server.
+ * Thus this is set to false in create() default implementation (it's a dynamic
+ * function so pay attention if you redefine it) and to true in 
+ * createFromAcceptedSocket(). Those are the two public function and ctor is
+ * private, so it should do.
+ */ 
 class WebSocket {
     private function new() {
     }
 
+    /**
+     * Create a client socket.
+     * It is similar but will have masking frames enabled.
+     */
+    dynamic static public function createClient(
+            url       : String,
+            protocols : Array<String> = null,
+            origin    : String        = null,
+            debug     : Bool          = false
+    ) : WebSocket {
+        #if js
+            return new haxe.net.impl.WebSocketJs(url, protocols);
+        #elseif flash
+            if (haxe.net.impl.WebSocketFlashExternalInterface.available()) {
+                return new haxe.net.impl.WebSocketFlashExternalInterface(url, protocols);
+            }
+        #else
+            var wsg = haxe.net.impl.WebSocketGeneric.create(url, protocols, origin, "wskey", debug);
+            // here is the difference:
+            wsg.setMasking(true);
+            return wsg;
+        #end
+    }
+
+    /**
+     * Create a socket.
+     * Those sockets are created by default with setMasking(true)
+     * (frames sent in direction client->server are to be masked, and we have
+     * createFromAcceptedSocket() below which setMasking(false)).
+     */
     dynamic static public function create(
             url       : String,
             protocols : Array<String> = null,
@@ -34,7 +76,9 @@ class WebSocket {
 	#if sys
 	/**
 	 * create server websocket from socket returned by accept()
-	 * wait for onopen() to be called before using websocket
+	 * wait for onopen() to be called before using websocket.
+     * Since this is very likely to be a socket owned by a "server", it will
+     * setMasking(false) (frames sent in direction server->client are not masked).
 	 * @param	socket - accepted socket 
 	 * @param	alredyRecieved - data already read from socket, it should be no more then full http header
 	 * @param	debug - debug messages?
