@@ -69,14 +69,17 @@ class SocketSys extends Socket2 {
 	}
 
     override public function close() {
+        if (debug) trace("impl/SocketSys.close() called");
 		this.impl.close();
+        if (debug) trace("   after this.impl.close()");
         isClosed = true;
 		if (!wasCloseSent) {
-			
-			wasCloseSent = true;
+            if (debug) trace("  SocketSys.close() : !wasCloseSent. calling onclose() ");
 			if (debug) trace('socket.onclose!');
+			wasCloseSent = true;
 			onclose();
 		}
+        if (debug) trace("  SocketSys.close() executed. ");
     }
 
     override public function process() {

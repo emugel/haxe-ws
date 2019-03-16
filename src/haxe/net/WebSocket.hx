@@ -15,8 +15,7 @@ enum ReadyState {
  * Underlying implementation is WebSocketGeneric for non-js and non-flash
  * platform.
  *
- * According to RFC6455, frames should be masked if and only if they are
- * issued from a client to a server.
+ * According to RFC6455, frames should be masked if and only if they are issued from a client to a server.
  * Thus this is set to false in create() default implementation (it's a dynamic
  * function so pay attention if you redefine it) and to true in 
  * createFromAcceptedSocket(). Those are the two public function and ctor is

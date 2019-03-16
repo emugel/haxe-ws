@@ -112,9 +112,10 @@ class WebSocketGeneric extends WebSocket {
             socket.send(data);
         } catch (e:Dynamic) {
             if (e == 'Blocking' || (Std.is(e, Error) && (e == Blocked))) {
-                trace("Blocked");
+                _debug("Blocked");
             }
             else {
+                _debug("Calling onerror from WebSocketGeneric");
                 onerror(Std.string(e));
             }
         }
